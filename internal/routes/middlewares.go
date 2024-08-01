@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -39,11 +40,33 @@ func buildRequestLogMsg(status string, r *http.Request) string {
 	return fmt.Sprintf("api %s %s %s", method, path, status)
 }
 
+func parseRemoteAddr(remoteAddr string) (ip string, port int, err error) {
+	remoteAddrSplitted := strings.Split(remoteAddr, ":")
+
+	port, err = strconv.Atoi(remoteAddrSplitted[len(remoteAddrSplitted)-1])
+
+	if err != nil {
+		return "", -1, err
+	}
+
+	ip = strings.Join(remoteAddrSplitted[:len(remoteAddrSplitted)-1], ":")
+
+	return ip, port, nil
+
+}
+
 func requestLoggerMdw(log *logger.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			customData := map[string]interface{}{}
-			customData["remoteAddr"] = r.RemoteAddr
+			remoteIp, remotePort, err := parseRemoteAddr(r.RemoteAddr)
+			if err != nil {
+				customData["error"] = err.Error()
+				log.Warn(buildRequestLogMsg("warn", r), customData)
+
+			}
+			customData["remoteIp"] = remoteIp
+			customData["remotePort"] = remotePort
 			customData["path"] = r.URL.Path
 
 			ctx := r.Context()
