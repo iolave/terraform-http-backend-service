@@ -13,6 +13,7 @@ const (
 func NewRouter() chi.Router {
 	router := chi.NewRouter()
 
+	router.Use(traceMdw())
 	router.Use(requestLoggerMdw(config.Logger))
 	router.Use(middleware.SetHeader("content-type", "application/json"))
 
